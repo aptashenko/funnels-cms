@@ -5,6 +5,7 @@ from flask_cors import CORS
 from datetime import datetime
 from collections import OrderedDict
 from mailgun.send_email import send_message
+from mailgun.send_support import support_email
 import json
 
 app = Flask(__name__)
@@ -65,6 +66,22 @@ def send_email():
         db.session.rollback()
         return Response(json.dumps({'error': str(e)}), status=500, mimetype='application/json')
 
+@app.route('/support', methods=['POST'])
+def support_form():
+    data = request.get_json();
+    if 'email' not in data:
+        return Response(json.dumps({'error': 'Email is required'}), status=400, mimetype='application/json')
+    if 'text' not in data:
+        return Response(json.dumps({'error': 'Message id is required'}), status=400, mimetype='application/json')
+    email = data['email']
+    text = data['text']
+    try:
+        support_email(email, text)
+        return Response(json.dumps({'message': 'Message sent'}), mimetype='application/json')
+    except Exception as e:
+        return Response(json.dumps({'error': str(e)}), status=500, mimetype='application/json')
+
+
 @app.route('/clear', methods=['GET'])
 def clear_users():
     try:
@@ -82,4 +99,4 @@ def get_users():
     return Response(json.dumps(users_list, default=str), mimetype='application/json')
 
 if __name__ == '__main__':
-    app.run()
+    app.run(port=5001)
