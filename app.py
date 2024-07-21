@@ -59,9 +59,10 @@ def send_email():
 
         user.promocode = promocode
 
-        send_message(user.email)
+        resp = send_message(user.email)
         db.session.commit()
-        return Response(json.dumps({'message': 'Message sent'}), mimetype='application/json')
+        print(resp)
+        return Response(json.dumps({'message': str(resp)}), mimetype='application/json')
     except Exception as e:
         db.session.rollback()
         return Response(json.dumps({'error': str(e)}), status=500, mimetype='application/json')

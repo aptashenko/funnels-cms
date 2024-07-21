@@ -1,13 +1,18 @@
 import requests
 
 def send_message(to_email):
-    return requests.post(
-        "https://api.mailgun.net/v3/sandboxec293437b85f4ea5bb82ff52faf4f095.mailgun.org/messages",
-        auth=("api", "742b58a4f1ec2980fc8c2da8e5443a6a-8a084751-38c6c65a"),
-        data={
-            "from": "UTPROZORRO <mailgun@sandboxec293437b85f4ea5bb82ff52faf4f095.mailgun.org>",
-            "to": to_email,
-            "subject": "Hello",
-            "text": "Testing some Mailgun awesomeness!"
-        }
-    )
+    url = 'https://api.selzy.com/en/api/sendEmail'
+    API_KEY = '6msoo3rk48o6w79wrc6w8s6icm3rkh3zw1eeqida'
+
+    params = {
+        'format': 'json',
+        'api_key': API_KEY,
+        'email': to_email,
+        'sender_name': 'UTProzorro',
+        'sender_email': 'aptashenko2019@gmail.com',
+        'subject': 'Ваша промокод здесь!',
+        'body': '<h2>Промокод</h2>',
+        'list_id': '20625873'
+    }
+
+    requests.get(url, params=params)
