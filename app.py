@@ -7,6 +7,7 @@ from collections import OrderedDict
 from mailgun.send_email import send_message
 from mailgun.send_support import support_email
 import json
+import random
 
 app = Flask(__name__)
 CORS(app)
@@ -47,22 +48,18 @@ def send_email():
     data = request.get_json()
     if not data or 'email' not in data:
         return Response(json.dumps({'error': 'Email is required'}), status=400, mimetype='application/json')
-    if not data or 'promocode' not in data:
-        return Response(json.dumps({'error': 'Promocode is required'}), status=400, mimetype='application/json')
     email = data['email']
-    promocode = data['promocode']
 
     try:
         user = User.query.filter_by(email=email).first()
         if not user:
             return Response(json.dumps({'error': 'User not found'}), status=404, mimetype='application/json')
 
-        user.promocode = promocode
-
-        resp = send_message(user.email)
+        promocode_value = get_random_promocode();
+        user.promocode = promocode_value;
+        send_message(user.email, promocode_value);
         db.session.commit()
-        print(resp)
-        return Response(json.dumps({'message': str(resp)}), mimetype='application/json')
+        return Response(json.dumps({'promocode': promocode_value}), mimetype='application/json')
     except Exception as e:
         db.session.rollback()
         return Response(json.dumps({'error': str(e)}), status=500, mimetype='application/json')
@@ -98,6 +95,21 @@ def get_users():
     users = User.query.all()
     users_list = [OrderedDict([('id', user.id), ('email', user.email), ('user_id', user.user_id), ('promocode', user.promocode), ('created_at', user.created_at)]) for user in users]
     return Response(json.dumps(users_list, default=str), mimetype='application/json')
+
+def get_random_promocode():
+    with open('promocodes.json', 'r') as file:
+        promocodes = json.load(file)
+
+        if promocodes:
+            promocode = random.choice(promocodes)
+            promocodes.remove(promocode)
+
+            with open('promocodes.json', 'w') as file:
+                json.dump(promocodes, file)
+
+            return promocode
+        else:
+            return None
 
 if __name__ == '__main__':
     app.run(port=5001)
