@@ -10,8 +10,8 @@ def send_message(to_email, promocode):
         'api_key': API_KEY,
         'email': to_email,
         'sender_name': 'UTProzorro',
-        'sender_email': 'aptashenko2019@gmail.com',
-        'subject': 'Ваша промокод здесь!',
+        'sender_email': 'aptashenko@utprozorro.com.ua',
+        'subject': 'Ваш промокод чекає на Вас',
         'body': render_template('email.html', promocode=promocode),
         'list_id': '20625873'
     }

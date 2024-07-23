@@ -73,8 +73,11 @@ def support_form():
         return Response(json.dumps({'error': 'Message id is required'}), status=400, mimetype='application/json')
     email = data['email']
     text = data['text']
+    telegram = data['telegram']
+    name = data['name']
+
     try:
-        support_email(email, text)
+        support_email(email, telegram, name, text)
         return Response(json.dumps({'message': 'Message sent'}), mimetype='application/json')
     except Exception as e:
         return Response(json.dumps({'error': str(e)}), status=500, mimetype='application/json')
