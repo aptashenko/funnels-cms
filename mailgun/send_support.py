@@ -7,7 +7,7 @@ def support_email(from_email, text):
     params = {
         'format': 'json',
         'api_key': API_KEY,
-        'email': 'artzakrevskiy@gmail.com',
+        'email': 'aptashenko@utprozorro.com.ua',
         'sender_name': 'UTProzorro',
         'sender_email': from_email,
         'subject': f'Запрос от {from_email}',
