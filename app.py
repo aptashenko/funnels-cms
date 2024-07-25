@@ -1,6 +1,7 @@
-from app import create_app
-from flask import request, Response
-from app import db
+from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
+from flask_cors import CORS
+from flask import Flask, request, Response
 from app.routes.add_user import add_new_user
 from app.routes.clear import clear_all_users
 from app.routes.send_email import send_email
@@ -11,10 +12,22 @@ from app.services import reset_expired_promocodes
 from app.routes.user_profile import user_profile
 import json
 
-app = create_app()
+app = Flask(__name__)
+CORS(app)
 
-with app.app_context():
-    reset_expired_promocodes(db)
+MYSQL_HOST = 'ovh6.mirohost.net'
+MYSQL_USER = 'u_aptashenko'
+MYSQL_PASSWORD = 'Aptashenko93'
+MYSQL_DB = 'utprozorro_db'
+
+app.config['SQLALCHEMY_DATABASE_URI'] = f'mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}/{MYSQL_DB}'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db = SQLAlchemy(app)
+migrate = Migrate(app, db)
+
+# reset_expired_promocodes(db)
+
 
 @app.route('/')
 def index():
