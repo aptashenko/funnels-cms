@@ -1,15 +1,15 @@
-from app import create_app
 from flask import Flask,request, Response
 from app import db
+
 from app.routes.new_user import add_new_user
 from app.routes.clear import clear_all_users
 from app.routes.send_email import send_email
 from selzy.send_support import support_email
 from app.routes.users import get_users
 from app.routes.use_promocode import use_promocode
-import json
 
-app = create_app()
+import json
+app = Flask(__name__)
 
 @app.route('/')
 def index():
@@ -92,8 +92,3 @@ def use_promocode():
         return Response(json.dumps({'message': message.message}), status=message.status, mimetype='application/json')
     except Exception as e:
         return Response(json.dumps({'error': str(e)}), status=500, mimetype='application/json')
-
-
-if __name__ == '__main__':
-    app.run(port=5001)
-    db.create_all()
