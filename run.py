@@ -1,19 +1,36 @@
 from app import create_app
-from flask import Flask,request, Response
+from flask import request, Response
 from app import db
-from app.routes.new_user import add_new_user
+from app.routes.add_user import add_new_user
 from app.routes.clear import clear_all_users
 from app.routes.send_email import send_email
 from selzy.send_support import support_email
 from app.routes.users import get_users
 from app.routes.use_promocode import use_promocode
+from app.services import reset_expired_promocodes
+from app.routes.user_profile import user_profile
 import json
 
 app = create_app()
 
+with app.app_context():
+    reset_expired_promocodes(db)
+
 @app.route('/')
 def index():
     return 'Hello World!'
+
+@app.route('/profile')
+def get_users_profile():
+    web_user_id = request.headers.get('Authorization')
+    if 'web_user_id' == None:
+        return Response(json.dumps({'error': 'web_user_id is required'}), status=400)
+
+    try:
+        response = user_profile(web_user_id)
+        return Response(json.dumps(response['message']), status=response['status'], mimetype='application/json')
+    except Exception as e:
+        return Response(json.dumps({'error': str(e)}), status=500)
 
 @app.route('/add-user', methods=['POST'])
 def add_user():
@@ -49,9 +66,9 @@ def send_email_to_user():
     email = data['email']
 
     try:
-        error_message = send_email(email)
-        if error_message:
-            return Response(json.dumps({'error': error_message}), status=404, mimetype='application/json')
+        response = send_email(email)
+        return Response(json.dumps(response['message']), status=response['status'], mimetype='application/json')
+
     except Exception as e:
         db.session.rollback()
         return Response(json.dumps({'error': str(e)}), status=500, mimetype='application/json')
@@ -89,10 +106,9 @@ def use_promocode():
 
     try:
         message = use_promocode(promocode_value)
-        return Response(json.dumps({'message': message.message}), status=message.status, mimetype='application/json')
+        return Response(json.dumps(message['message']), status=message['status'], mimetype='application/json')
     except Exception as e:
         return Response(json.dumps({'error': str(e)}), status=500, mimetype='application/json')
-
 
 if __name__ == '__main__':
     app.run(port=5001)
