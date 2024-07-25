@@ -1,42 +1,36 @@
-from flask import Flask, Response, request
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
-from flask_cors import CORS
-from datetime import datetime
-from collections import OrderedDict
-from mailgun.send_email import send_message
-from mailgun.send_support import support_email
+from app import create_app
+from flask import request, Response
+from app import db
+from app.routes.add_user import add_new_user
+from app.routes.clear import clear_all_users
+from app.routes.send_email import send_email
+from selzy.send_support import support_email
+from app.routes.users import get_users
+from app.routes.use_promocode import use_promocode
+from app.services import reset_expired_promocodes
+from app.routes.user_profile import user_profile
 import json
-import random
 
+app = create_app()
 
-MYSQL_HOST = 'ovh6.mirohost.net'
-MYSQL_USER = 'u_aptashenko'
-MYSQL_PASSWORD = 'Aptashenko93'
-MYSQL_DB = 'utprozorro_db'
+with app.app_context():
+    reset_expired_promocodes(db)
 
-app = Flask(__name__)
-CORS(app)
+@app.route('/')
+def index():
+    return 'Hello World!'
 
-app.config['SQLALCHEMY_DATABASE_URI'] = f'mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}/{MYSQL_DB}'
+@app.route('/profile')
+def get_users_profile():
+    web_user_id = request.headers.get('Authorization')
+    if 'web_user_id' == None:
+        return Response(json.dumps({'error': 'web_user_id is required'}), status=400)
 
-db = SQLAlchemy(app)
-migrate = Migrate(app, db)
-
-
-class Users(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(30), nullable=False)
-    promocode_id = db.Column(db.String(20), nullable=True)
-    web_user_id = db.Column(db.String(100), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-class Promocodes(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    value = db.Column(db.String(100), nullable=False)
-    used = db.Column(db.Boolean, default=False)
-    user_email = db.Column(db.String(100), nullable=True)
-    created_at = db.Column(db.DateTime, nullable=True)
+    try:
+        response = user_profile(web_user_id)
+        return Response(json.dumps(response['message']), status=response['status'], mimetype='application/json')
+    except Exception as e:
+        return Response(json.dumps({'error': str(e)}), status=500)
 
 @app.route('/add-user', methods=['POST'])
 def add_user():
@@ -47,54 +41,40 @@ def add_user():
         return Response(json.dumps({'error': 'web_user_id is required'}), status=400, mimetype='application/json')
     email = data['email']
     user_id = data['web_user_id']
-    user = Users(email=email, web_user_id=user_id)
 
     try:
-        db.session.add(user)
-        db.session.commit()
+        add_new_user(email, user_id)
         return Response(json.dumps({'message': 'User added successfully'}), mimetype='application/json')
     except Exception as e:
         db.session.rollback()
         return Response(json.dumps({'error': str(e)}), status=500, mimetype='application/json')
 
+@app.route('/clear', methods=['GET'])
+def clear_all():
+    try:
+        clear_all_users()
+        return Response(json.dumps({'message': 'User cleared'}), status=200, mimetype='application/json')
+    except Exception as e:
+        db.session.rollback()
+        return Response(json.dumps({'error': str(e)}), status=500, mimetype='application/json')
+
 @app.route('/send-email', methods=['POST'])
-def send_email():
+def send_email_to_user():
     data = request.get_json()
     if not data or 'email' not in data:
         return Response(json.dumps({'error': 'Email is required'}), status=400, mimetype='application/json')
     email = data['email']
 
     try:
-        user = Users.query.filter_by(email=email).first()
-        if not user:
-            return Response(json.dumps({'error': 'User not found'}), status=404, mimetype='application/json')
+        response = send_email(email)
+        return Response(json.dumps(response['message']), status=response['status'], mimetype='application/json')
 
-        promocode_value = get_random_promocode()
-
-        promocode = Promocodes.query.filter_by(value=promocode_value).first()
-        promocode.user_email = email
-        promocode.created_at = datetime.utcnow()
-
-        user.promocode_id = promocode_value
-
-        send_message(user.email, promocode_value)
-
-        db.session.commit()
-        return Response(json.dumps({'promocode': promocode_value}), mimetype='application/json')
     except Exception as e:
         db.session.rollback()
         return Response(json.dumps({'error': str(e)}), status=500, mimetype='application/json')
 
-
-def get_random_promocode():
-    promocodes = Promocodes.query.filter_by(user_email=None).all()
-    print(len(promocodes))
-    promocode = random.choice(promocodes)
-    return promocode.value
-
-
 @app.route('/support', methods=['POST'])
-def support_form():
+def send_to_support():
     data = request.get_json();
     if 'email' not in data:
         return Response(json.dumps({'error': 'Email is required'}), status=400, mimetype='application/json')
@@ -111,22 +91,13 @@ def support_form():
     except Exception as e:
         return Response(json.dumps({'error': str(e)}), status=500, mimetype='application/json')
 
-
-@app.route('/clear', methods=['GET'])
-def clear_users():
-    try:
-        db.session.query(Users).delete()
-        db.session.commit()
-        return Response(json.dumps({'message': 'User cleared'}), status=200, mimetype='application/json')
-    except Exception as e:
-        db.session.rollback()
-        return Response(json.dumps({'error': str(e)}), status=500, mimetype='application/json')
-
 @app.route('/users', methods=['GET'])
-def get_users():
-    users = Users.query.all()
-    users_list = [OrderedDict([('id', user.id), ('email', user.email), ('user_id', user.user_id), ('promocode_id', user.promocode_id), ('created_at', user.created_at)]) for user in users]
-    return Response(json.dumps(users_list, default=str), mimetype='application/json')
+def get_all_users():
+    try:
+        users = get_users()
+        return Response(json.dumps(users, default=str), mimetype='application/json')
+    except Exception as e:
+        return Response(json.dumps({'error': str(e)}), status=500, mimetype='application/json')
 
 @app.route('/use-promocode', methods=['POST'])
 def use_promocode():
@@ -134,22 +105,10 @@ def use_promocode():
     promocode_value = str(data['value'])
 
     try:
-        promocode = Promocodes.query.filter_by(value=promocode_value).first()
-        if not promocode:
-            return Response(json.dumps({'error': 'Promocode not found'}), status=404, mimetype='application/json')
-        if promocode.used == 1:
-            return Response(json.dumps({'error': 'Этот промокод уже использован'}), status=409, mimetype='application/json')
-        promocode.used = 1
-        db.session.commit()
-        return Response(json.dumps({'message': f'Промокод {promocode.value} успешно активирован'}), mimetype='application/json')
-
+        message = use_promocode(promocode_value)
+        return Response(json.dumps(message['message']), status=message['status'], mimetype='application/json')
     except Exception as e:
-        # Handle any exceptions and return a 500 error with the exception message
         return Response(json.dumps({'error': str(e)}), status=500, mimetype='application/json')
-
-
-
-
 
 if __name__ == '__main__':
     app.run(port=5001)
