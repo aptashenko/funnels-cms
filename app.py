@@ -1,30 +1,17 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-from flask_cors import CORS
-from flask import Flask, request, Response
+from flask import request, Response
 from app.routes.add_user import add_new_user
 from app.routes.clear import clear_all_users
 from app.routes.send_email import send_email
 from selzy.send_support import support_email
 from app.routes.users import get_users
 from app.routes.use_promocode import use_promocode
-from app.services import reset_expired_promocodes
+from app import create_app
 from app.routes.user_profile import user_profile
 import json
 
-app = Flask(__name__)
-CORS(app)
-
-MYSQL_HOST = 'ovh6.mirohost.net'
-MYSQL_USER = 'u_aptashenko'
-MYSQL_PASSWORD = 'Aptashenko93'
-MYSQL_DB = 'utprozorro_db'
-
-app.config['SQLALCHEMY_DATABASE_URI'] = f'mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}/{MYSQL_DB}'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-db = SQLAlchemy(app)
-migrate = Migrate(app, db)
+app = create_app()
 
 # reset_expired_promocodes(db)
 
