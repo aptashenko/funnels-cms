@@ -1,5 +1,3 @@
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
 from flask import request, Response
 from app.routes.add_user import add_new_user
 from app.routes.clear import clear_all_users
@@ -7,7 +5,7 @@ from app.routes.send_email import send_email
 from selzy.send_support import support_email
 from app.routes.users import get_users
 from app.routes.use_promocode import use_promocode
-from app import create_app
+from app import create_app, db
 from app.routes.user_profile import user_profile
 import json
 
@@ -100,10 +98,9 @@ def get_all_users():
         return Response(json.dumps({'error': str(e)}), status=500, mimetype='application/json')
 
 @app.route('/use-promocode', methods=['POST'])
-def use_promocode():
+def activate_promocode():
     data = request.get_json()
     promocode_value = str(data['value'])
-
     try:
         message = use_promocode(promocode_value)
         return Response(json.dumps(message['message']), status=message['status'], mimetype='application/json')

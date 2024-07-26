@@ -1,6 +1,7 @@
 from app import db
 from app.models import Promocodes
 def use_promocode(value):
+    print(value)
     promocode = Promocodes.query.filter_by(value=value).first()
     if not promocode:
         return {'status': 404, 'message': {'error': 'Промокод не найден'}}
